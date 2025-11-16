@@ -1,5 +1,6 @@
 import React from 'react';
-import CardForm from '../components/CardForm';
+// Let's try being very specific with the full filename, including the extension.
+import CardForm from '../components/CardForm.jsx'; 
 
 function App() {
   const appStyles = {
@@ -18,7 +19,10 @@ function App() {
   return (
     <div style={appStyles}>
       <h1 style={headerStyles}>🃏 The Card Flipper 🃏</h1>
-      <CardForm />
+      
+      {/* This one line is what makes our form appear */}
+      <CardForm /> 
+
     </div>
   );
 }
