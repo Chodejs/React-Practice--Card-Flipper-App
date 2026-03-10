@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-// --- STYLES OBJECT (from previous fix) ---
-// We moved all the CSS module styles into this object to fix compiler issues.
+// --- STYLES OBJECT ---
 const styles = {
   formContainer: {
     background: 'white',
@@ -42,7 +41,7 @@ const styles = {
     border: '1px solid #ddd',
     borderRadius: '4px',
     fontSize: '1rem',
-    boxSizing: 'border-box', // Fixes potential sizing issues
+    boxSizing: 'border-box', 
   },
   select: {
     padding: '0.75rem',
@@ -76,39 +75,58 @@ const styles = {
     border: '1px solid #ccc',
     marginBottom: '1rem',
     color: '#333',
-    minHeight: '1.5em', // Ensures it doesn't collapse
-    wordWrap: 'break-word', // Prevents long titles from overflowing
+    minHeight: '1.5em', 
+    wordWrap: 'break-word', 
   },
   buttonGroup: {
     display: 'flex',
     gap: '1rem',
+    marginBottom: '1rem',
   },
-  copyBtn: {
+  btnBase: {
     padding: '0.75rem 1.5rem',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: 'bold',
     flex: 1,
-    position: 'relative', // For notification
-    backgroundColor: '#6c757d',
-    color: 'white',
-    fontSize: '1em', // Inherit font settings
-    fontFamily: 'inherit', // Inherit font settings
-  },
-  saveBtn: {
-    padding: '0.75rem 1.5rem',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    flex: 1,
-    position: 'relative',
-    backgroundColor: '#28a745',
-    color: 'white',
     fontSize: '1em', 
     fontFamily: 'inherit',
-    transition: 'background-color 0.3s ease', // Smooth color change
+    transition: 'background-color 0.3s ease',
+  },
+  copyBtn: {
+    backgroundColor: '#6c757d',
+    color: 'white',
+    position: 'relative',
+  },
+  saveBtn: {
+    backgroundColor: '#28a745',
+    color: 'white',
+  },
+  // --- NEW AI STYLES ---
+  aiBtn: {
+    backgroundColor: '#6f42c1', // A lovely purple for the AI magic
+    color: 'white',
+  },
+  aiBtnLoading: {
+    backgroundColor: '#9a7fd1',
+    cursor: 'wait',
+  },
+  aiResultsBox: {
+    background: '#e0cffc',
+    border: '1px solid #b388ff',
+    borderRadius: '6px',
+    padding: '1rem',
+    marginBottom: '1rem',
+    color: '#333',
+  },
+  aiSubhead: {
+    marginTop: 0,
+    color: '#4a148c',
+    fontSize: '1rem',
+    marginBottom: '0.5rem',
+    borderBottom: '1px solid #b388ff',
+    paddingBottom: '0.25rem'
   },
   copiedMessage: {
     position: 'absolute',
@@ -121,22 +139,18 @@ const styles = {
     borderRadius: '4px',
     fontSize: '0.9rem',
   },
-  // --- NEW STYLES FOR SAVE BUTTON STATES ---
   saveBtnSaving: {
-    backgroundColor: '#ffc107', // Yellow for "Saving..."
+    backgroundColor: '#ffc107', 
     cursor: 'wait',
   },
   saveBtnSuccess: {
-    backgroundColor: '#28a745', // Green for "Saved!"
+    backgroundColor: '#28a745', 
   },
   saveBtnError: {
-    backgroundColor: '#dc3545', // Red for "Error!"
+    backgroundColor: '#dc3545', 
   }
 };
-// --- END STYLES OBJECT ---
 
-
-// Define the initial state for the form so we can reset it
 const initialState = {
   year: '',
   brand: '',
@@ -150,36 +164,33 @@ const initialState = {
 };
 
 const CardForm = () => {
-  // 1. The "Source of Truth" for our form data
   const [formData, setFormData] = useState(initialState);
-
-  // 2. The "Derived State" - This calculates automatically!
   const [generatedTitle, setGeneratedTitle] = useState('');
-
-  // 3. State for our "Copied!" notification
   const [showCopied, setShowCopied] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('idle'); 
+  
+  // --- NEW AI STATES ---
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiResults, setAiResults] = useState(null);
 
-  // 4. NEW: State for our "Save" button
-  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle', 'saving', 'success', 'error'
-
-  // 5. The "Magic" Effect - Regenerate title whenever data changes
+  // Auto-generate a basic title as they type, unless the AI has provided a custom one
   useEffect(() => {
-    // Logic: Year + Brand + Set + Player + Card Number + (Grade if applicable)
+    // If we already have an AI title, don't overwrite it with the basic one!
+    if (aiResults && aiResults.custom_title) return;
+
     const parts = [
       formData.year,
       formData.brand,
       formData.set_name,
       formData.player_name,
       formData.card_number ? `#${formData.card_number}` : '',
-      formData.is_graded ? formData.condition : '', // Only show condition in title if graded (e.g. PSA 10)
+      formData.is_graded ? formData.condition : '', 
     ];
 
-    // Filter out empty strings and join with spaces
     const title = parts.filter(part => part && part.trim() !== '').join(' ');
     setGeneratedTitle(title);
-  }, [formData]);
+  }, [formData, aiResults]);
 
-  // Generic handler for text inputs
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -188,52 +199,79 @@ const CardForm = () => {
     }));
   };
 
-  // 6. The Copy Handler (using execCommand for iframe compatibility)
+  // --- NEW AI HANDLER ---
+  const handleGenerateAI = async () => {
+    // Don't bother if the fields are completely empty
+    if (!formData.player_name && !formData.brand) {
+      alert("Give Gemini a fighting chance, mate! Enter a player name or brand first.");
+      return;
+    }
+
+    setIsGenerating(true);
+    setAiResults(null); // Clear previous results
+
+    try {
+      const response = await fetch('/card-flipper-api/generate_ai.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'success' && result.data) {
+        setAiResults(result.data);
+        // Automatically slap the AI's title into the preview box
+        if (result.data.custom_title) {
+          setGeneratedTitle(result.data.custom_title);
+        }
+      } else {
+        console.error('API Error:', result.message);
+        alert('Gemini threw a wobbly: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Network or Parsing Error:', error);
+      alert('Failed to connect to the AI script. Check your XAMPP server!');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleCopy = () => {
     if (!generatedTitle || showCopied) return; 
 
-    // Create a temporary textarea to hold the text
     const textArea = document.createElement('textarea');
     textArea.value = generatedTitle;
-    textArea.style.position = 'fixed';  // Prevent it from scrolling page
-    textArea.style.opacity = 0; // Make it invisible
+    textArea.style.position = 'fixed';  
+    textArea.style.opacity = 0; 
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
     try {
-      document.execCommand('copy'); // This is the key part
-      setShowCopied(true); // Trigger visual feedback
+      document.execCommand('copy'); 
+      setShowCopied(true); 
     } catch (err) {
       console.error('Failed to copy text: ', err);
     }
-    // Clean up the temporary element
     document.body.removeChild(textArea);
 
-    // Reset the "Copied!" message after 2 seconds
     setTimeout(() => {
       setShowCopied(false);
     }, 2000);
   };
 
-  // 7. --- UPDATED: The Submit Handler ---
   const handleSubmit = async (e) => {
-    console.log("HANDLE SUBMIT CALLED!"); // <-- Our debug line!
-    e.preventDefault(); // Stop the form from reloading the page
-    setSaveStatus('saving'); // Set button to "Saving..."
+    e.preventDefault(); 
+    setSaveStatus('saving'); 
 
-    // Combine all data to be sent
+    // Include the generated title (either basic or AI) AND the AI description if it exists
     const dataToSend = {
       ...formData,
-      generatedTitle: generatedTitle
+      generatedTitle: generatedTitle,
+      description: aiResults ? aiResults.description : '',
     };
     
-    // This is the log you were seeing, which is great!
-    console.log("Sending to DB:", dataToSend);
-
     try {
-      // !! THIS IS THE API REQUEST !!
-      // It sends our data to the /api/save_card.php URL
-      // The Vite proxy will intercept this and send it to http://localhost/api/save_card.php
       const response = await fetch('/card-flipper-api/save_card.php', {
         method: 'POST',
         headers: {
@@ -242,155 +280,95 @@ const CardForm = () => {
         body: JSON.stringify(dataToSend),
       });
 
-      // Wait for the server's response and try to parse it as JSON
       const result = await response.json();
 
       if (result.status === 'success') {
-        // IT WORKED!
-        console.log('Success:', result);
-        setSaveStatus('success'); // Set button to "Saved!"
-        setFormData(initialState); // Reset the form
+        setSaveStatus('success'); 
+        setFormData(initialState); 
+        setAiResults(null); // Clear the AI box on success
+        setGeneratedTitle('');
       } else {
-        // The PHP script ran but sent back an error (e.g., "Connection failed")
         console.error('API Error:', result.message);
-        setSaveStatus('error'); // Set button to "Error!"
+        setSaveStatus('error'); 
       }
 
     } catch (error) {
-      // This catches:
-      // 1. Network errors (Vite proxy fails, XAMPP is off)
-      // 2. JSON parsing errors (PHP script had a fatal error and sent HTML back)
-      console.error('Network or Parsing Error:', error);
-      setSaveStatus('error'); // Set button to "Error!"
+      console.error('Network Error:', error);
+      setSaveStatus('error'); 
     }
 
-    // Reset button state after 3 seconds, regardless of outcome
     setTimeout(() => {
       setSaveStatus('idle');
     }, 3000);
   };
   
-  // 8. Helper for combining styles (since we can't use classnames)
   const combineStyles = (...styleObjects) => Object.assign({}, ...styleObjects);
 
-  // 9. Helper to get dynamic button text
   const getButtonText = () => {
     switch (saveStatus) {
-      case 'saving':
-        return 'Saving...';
-      case 'success':
-        return 'Saved!';
-      case 'error':
-        return 'Error! Try Again.';
-      default:
-        return 'Save to Database';
+      case 'saving': return 'Saving...';
+      case 'success': return 'Saved!';
+      case 'error': return 'Error! Try Again.';
+      default: return 'Save to Database';
     }
   };
 
-  // 10. Helper to get dynamic button style
   const getSaveButtonStyle = () => {
-    let style = styles.saveBtn;
-    if (saveStatus === 'saving') {
-      style = combineStyles(style, styles.saveBtnSaving);
-    } else if (saveStatus === 'success') {
-      style = combineStyles(style, styles.saveBtnSuccess);
-    } else if (saveStatus === 'error') {
-      style = combineStyles(style, styles.saveBtnError);
-    }
+    let style = combineStyles(styles.btnBase, styles.saveBtn);
+    if (saveStatus === 'saving') style = combineStyles(style, styles.saveBtnSaving);
+    if (saveStatus === 'success') style = combineStyles(style, styles.saveBtnSuccess);
+    if (saveStatus === 'error') style = combineStyles(style, styles.saveBtnError);
     return style;
   };
 
+  const getAiButtonStyle = () => {
+    let style = combineStyles(styles.btnBase, styles.aiBtn);
+    if (isGenerating) style = combineStyles(style, styles.aiBtnLoading);
+    return style;
+  };
 
   return (
     <div style={styles.formContainer}>
       <h2 style={styles.h2}>New Listing</h2>
       
-      {/* We added noValidate to stop the browser from blocking our onSubmit */}
       <form onSubmit={handleSubmit} style={styles.gridForm} noValidate>
         
         {/* Row 1: Basics */}
         <div style={styles.formGroup}>
           <label style={styles.label}>Year</label>
-          <input 
-            name="year" 
-            type="number" 
-            placeholder="1989" 
-            value={formData.year} 
-            onChange={handleChange} 
-            style={styles.input}
-          />
+          <input name="year" type="number" placeholder="1989" value={formData.year} onChange={handleChange} style={styles.input}/>
         </div>
 
         <div style={styles.formGroup}>
           <label style={styles.label}>Brand</label>
-          <input 
-            name="brand" 
-            type="text" 
-            placeholder="Upper Deck" 
-            value={formData.brand} 
-            onChange={handleChange} 
-            style={styles.input}
-          />
+          <input name="brand" type="text" placeholder="Upper Deck" value={formData.brand} onChange={handleChange} style={styles.input}/>
         </div>
 
         <div style={styles.formGroup}>
           <label style={styles.label}>Set / Series</label>
-          <input 
-            name="set_name" 
-            type="text" 
-            placeholder="Star Rookie" 
-            value={formData.set_name} 
-            onChange={handleChange} 
-            style={styles.input}
-          />
+          <input name="set_name" type="text" placeholder="Star Rookie" value={formData.set_name} onChange={handleChange} style={styles.input}/>
         </div>
 
         {/* Row 2: Player Info */}
         <div style={styles.formGroup}>
           <label style={styles.label}>Player Name</label>
-          <input 
-            name="player_name" 
-            type="text" 
-            placeholder="Ken Griffey Jr" 
-            value={formData.player_name} 
-            onChange={handleChange} 
-            style={styles.input}
-          />
+          <input name="player_name" type="text" placeholder="Ken Griffey Jr" value={formData.player_name} onChange={handleChange} style={styles.input}/>
         </div>
 
         <div style={styles.formGroup}>
           <label style={styles.label}>Card #</label>
-          <input 
-            name="card_number" 
-            type="text" 
-            placeholder="1" 
-            value={formData.card_number} 
-            onChange={handleChange} 
-            style={styles.input}
-          />
+          <input name="card_number" type="text" placeholder="1" value={formData.card_number} onChange={handleChange} style={styles.input}/>
         </div>
 
         <div style={styles.formGroup}>
           <label style={styles.label}>Team</label>
-          <input 
-            name="team" 
-            type="text" 
-            placeholder="Mariners" 
-            value={formData.team} 
-            onChange={handleChange} 
-            style={styles.input}
-          />
+          <input name="team" type="text" placeholder="Mariners" value={formData.team} onChange={handleChange} style={styles.input}/>
         </div>
 
         {/* Row 3: Condition Logic */}
         <div style={combineStyles(styles.formGroup, styles.fullWidth)}>
           <label style={styles.checkboxLabel}>
-            <input 
-              name="is_graded" 
-              type="checkbox" 
-              checked={formData.is_graded} 
-              onChange={handleChange} 
-            />
+            <input name="is_graded" type="checkbox" checked={formData.is_graded} onChange={handleChange} />
             Is this card graded (Slabbed)?
           </label>
         </div>
@@ -404,7 +382,6 @@ const CardForm = () => {
               <option value="BGS 9.5">BGS 9.5</option>
               <option value="SGC 10">SGC 10</option>
               <option value="CGC 10">CGC 10</option> 
-              {/* Feel free to add more grades */}
             </select>
           ) : (
             <select name="condition" value={formData.condition} onChange={handleChange} style={styles.select}>
@@ -428,25 +405,42 @@ const CardForm = () => {
 
         {/* THE MAGIC GENERATOR SECTION */}
         <div style={styles.previewSection}>
+          <div style={styles.buttonGroup}>
+             <button 
+              type="button" 
+              onClick={handleGenerateAI} 
+              style={getAiButtonStyle()}
+              disabled={isGenerating}
+            >
+              {isGenerating ? 'Gemini is thinking...' : '✨ Generate AI Pitch ✨'}
+            </button>
+          </div>
+
+          {/* AI Results Display */}
+          {aiResults && (
+            <div style={styles.aiResultsBox}>
+              <h3 style={styles.aiSubhead}>Market Estimate</h3>
+              <p style={{marginTop: 0, marginBottom: '1rem'}}>{aiResults.market_estimate}</p>
+              
+              <h3 style={styles.aiSubhead}>Selling Tip</h3>
+              <p style={{marginTop: 0, marginBottom: '1rem'}}>{aiResults.selling_tip}</p>
+
+              <h3 style={styles.aiSubhead}>Listing Description</h3>
+              <p style={{marginTop: 0, fontSize: '0.9rem', whiteSpace: 'pre-wrap'}}>{aiResults.description}</p>
+            </div>
+          )}
+
           <label style={styles.label}>Generated Title (Live Preview)</label>
           <div style={styles.titleDisplay}>
             {generatedTitle || "Start typing to generate title..."}
           </div>
+          
           <div style={styles.buttonGroup}>
-            <button 
-              type="button" 
-              onClick={handleCopy} 
-              style={styles.copyBtn}
-            >
-              Copy to Clipboard
-              {/* Show "Copied!" message when showCopied is true */}
+            <button type="button" onClick={handleCopy} style={combineStyles(styles.btnBase, styles.copyBtn)}>
+              Copy Title to Clipboard
               {showCopied && <span style={styles.copiedMessage}>Copied!</span>}
             </button>
-            <button 
-              type="submit" 
-              style={getSaveButtonStyle()}
-              disabled={saveStatus === 'saving'} // Disable button while saving
-            >
+            <button type="submit" style={getSaveButtonStyle()} disabled={saveStatus === 'saving'}>
               {getButtonText()}
             </button>
           </div>
