@@ -1,16 +1,64 @@
-# React + Vite
+# 🃏 The Card Flipper
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full-stack, AI-powered inventory management and listing assistant designed specifically for sports card and trading card resellers. 
 
-Currently, two official plugins are available:
+Built to eliminate the tedious data-entry of cross-platform selling, **The Card Flipper** utilizes the Gemini API to automatically generate optimized listing titles, market estimates, and compelling descriptions based on minimal card data.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Key Features
 
-## React Compiler
+* **🤖 AI-Powered Listings:** Input basic card details (Year, Brand, Player, Condition) and let Google's Gemini API instantly generate SEO-optimized titles, estimated market values, and selling tips.
+* **📋 One-Click Copy:** Seamlessly copy generated titles to your clipboard for rapid listing on platforms like eBay, Facebook Marketplace, and Mercari.
+* **🗄️ Inventory Management:** A beautifully responsive grid dashboard to track your entire vault. 
+* **🔄 Status Tracking:** Instantly update inventory status (Active, Sold, Personal, Draft) directly from the dashboard.
+* **📄 Smooth Pagination:** Custom-built pagination with a sliding window to handle large databases without breaking a sweat.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Tech Stack
 
-## Expanding the ESLint configuration
+**Frontend:**
+* [React 19](https://react.dev/) (Bootstrapped with [Vite](https://vitejs.dev/))
+* CSS Modules & Responsive CSS Grid
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+**Backend & Database:**
+* PHP (Custom RESTful API Architecture)
+* MySQL 
+* XAMPP / AMPPS Server Environment
+
+**Artificial Intelligence:**
+* Google Gemini API 
+
+## 🚀 Getting Started
+
+### Prerequisites
+* Node.js & npm installed
+* A local PHP server environment (e.g., XAMPP, AMPPS)
+* A Gemini API Key
+
+### Installation
+
+1.  **Clone the repository**
+    ```bash
+    git clone [https://github.com/yourusername/card-flipper.git](https://github.com/yourusername/card-flipper.git)
+    cd card-flipper
+    ```
+
+2.  **Install Frontend Dependencies**
+    ```bash
+    npm install
+    ```
+
+3.  **Setup the Backend API**
+    * Move the `/card-flipper-api` folder into your local server's root directory (e.g., `htdocs` or `www`).
+    * Import the provided SQL schema to your MySQL database.
+    * Update your database credentials and Gemini API key within the PHP configuration files.
+
+4.  **Run the Development Server**
+    ```bash
+    npm run dev
+    ```
+    *Note: The Vite config is already set up to proxy API requests to `http://localhost/card-flipper-api`.*
+
+## 🤝 Contributing
+Contributions, issues, and feature requests are welcome! 
+
+## 📝 License
+This project is [MIT](https://choosealicense.com/licenses/mit/) licensed.
